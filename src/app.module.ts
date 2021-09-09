@@ -5,6 +5,7 @@ import { Connection } from 'typeorm';
 import { AuthModule } from './auth/auth.module';
 import { getMySqlConfig } from './configs/msql.config';
 import { MailModule } from './mail/mail.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { MailModule } from './mail/mail.module';
       useFactory: getMySqlConfig
     }),
     AuthModule,
-    MailModule
+    MailModule,
+    UserModule
   ],
 })
 export class AppModule {

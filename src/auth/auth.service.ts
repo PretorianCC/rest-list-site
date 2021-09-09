@@ -8,54 +8,57 @@ import { USER_NOT_FOUND_ERROR, WRONG_PASSWORD_ERROR } from './auth.constants';
 import { JwtService } from '@nestjs/jwt';
 import {v4 as uuidv4} from 'uuid';
 import { MailService } from 'src/mail/mail.service';
+import { AuthTokenDto } from './dto/auth.tokem.dto';
 
 @Injectable()
 export class AuthService {
 
   constructor(
-    @InjectRepository(Auth) private readonly userRepository: Repository<Auth>,
+    @InjectRepository(Auth) private readonly authRepository: Repository<Auth>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService
   ) {}
 
   /**
-   * Создать пользователя.
+   * Создать аккаунт.
    * @param dto модель авторизации.
-   * @returns созданный пользователь.
+   * @returns созданный аккаунт.
    */
-  async createUser(dto: AuthDto): Promise<Auth> {
+  async createAuth(dto: AuthDto): Promise<Auth> {
     const salt = await genSalt(10);
-    const newUser = new Auth();
-    newUser.email = dto.login;
-    newUser.passwordHash = await hash(dto.password, salt);
-    return this.userRepository.save(newUser);  
+    const newAuth = new Auth();
+    newAuth.email = dto.login;
+    newAuth.passwordHash = await hash(dto.password, salt);
+    const result = await this.authRepository.save(newAuth);
+    this.sendConfirmationEmail(dto.login);
+    return result;  
   }
 
   /**
-   * Найти пользователя.
+   * Найти аккаунт.
    * @param email почтовый адрес пользователя.
-   * @returns найденый пользователь
+   * @returns найденый аккаунт
    */
-  async findUser(email: string): Promise<Auth> {
-    return this.userRepository.findOne({email});
+  async findAuth(email: string): Promise<Auth> {
+    return this.authRepository.findOne({email});
   }
 
   /**
-   * Авторизирует пользователя.
+   * Проверяет авторизацию аккаунта.
    * @param email почтовый адрес пользователя.
    * @param password пароль пользователя.
    * @returns почтовый адрес пользователя.
    */
-  async validateUser(email: string, password: string): Promise<Pick<Auth, 'email'>> {
-    const user = await this.findUser(email);
-    if (!user) {
+  async validateAuth(email: string, password: string): Promise<Pick<Auth, 'email'>> {
+    const auth = await this.findAuth(email);
+    if (!auth) {
       throw new UnauthorizedException(USER_NOT_FOUND_ERROR);
     }
-    const isCorrectPassword = await compare(password, user.passwordHash);
+    const isCorrectPassword = await compare(password, auth.passwordHash);
     if (!isCorrectPassword) {
       throw new UnauthorizedException(WRONG_PASSWORD_ERROR);
     }
-    return {email: user.email}
+    return {email: auth.email}
   }
 
   /**
@@ -63,7 +66,7 @@ export class AuthService {
    * @param email почтовый адрес пользователя.
    * @returns jwt токен.
    */
-  async login(email: string) {
+  async login(email: string): Promise<{access_token: string}> {
     const payload = {email};
     return {
       access_token: await this.jwtService.sign(payload)
@@ -71,18 +74,54 @@ export class AuthService {
   }
 
   /**
-   * Идентификатор для смены пароля.
+   * Отправка письма аккаунта с идентификатором для смены пароля.
    * @param email почтовый адрес пользователя.
-   * @returns
    */
   async restorePassword(email: string): Promise<void> {
-    const user = await this.findUser(email);
-    if (!user) {
+    const token = await this.createTokenAuth(email);
+    this.mailService.sendRestorePassword(email, token);
+  }
+
+  /**
+   * Отправка письма, для подтверждения адреса электронной почты аккаунта.
+   * @param email почтовый адрес пользователя.
+   */
+  async sendConfirmationEmail(email: string): Promise<void> {
+    const token = await this.createTokenAuth(email);
+    this.mailService.sendAuthConfirmation(email, token);
+  }
+
+  /**
+   * Создать токен аккаунту.
+   * @param email почтовый адрес пользователя.
+   * @returns созданный токен.
+   */
+  async createTokenAuth(email: string): Promise<string> {
+    const auth = await this.findAuth(email);
+    if (!auth) {
       throw new UnauthorizedException(USER_NOT_FOUND_ERROR);
     }
     const token = uuidv4();
-    user.restorePasswordId = token;
-    this.userRepository.save(user);
-    this.mailService.sendAuthConfirmation(email, token);
+    auth.uuid = token;
+    await this.authRepository.save(auth);
+    return token;
   }
+
+  /**
+   * Подтверждение электронной почты аккаунта и создание пользователя.
+   * @param dto модель токена.
+   */
+  async confirmation(dto: AuthTokenDto) {
+    return this.findToken(dto.token);
+  }
+
+    /**
+   * Найти аккаунт по токену.
+   * @param token токен акаунта.
+   * @returns 
+   */
+     async findToken(token: string): Promise<Auth> {
+      return await this.authRepository.findOne({uuid: token});
+    }
+  
 }

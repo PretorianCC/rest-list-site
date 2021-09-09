@@ -11,6 +11,7 @@ import { getMailConfig } from 'src/configs/mail.config';
       useFactory: getMailConfig,
       inject: [ConfigService],
     }),
+    ConfigModule
   ],
   providers: [MailService],
   exports: [MailService]
