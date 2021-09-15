@@ -9,6 +9,7 @@ import { getJWTConfig } from 'src/configs/jwt.config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MailModule } from '../mail/mail.module'
+import { UserModule } from 'src/user/user.module';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { MailModule } from '../mail/mail.module'
       useFactory: getJWTConfig
     }),
     PassportModule,
-    MailModule
+    MailModule,
+    UserModule
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

@@ -31,7 +31,7 @@ export class MailService {
     const protocol = this.configService.get('SERVER_PROTOCOL');
     const host = this.configService.get('SERVER_HOST');
     const port = this.configService.get('SERVER_PORT');
-    const link = `${protocol}://${host}:${port}/auth/confirm?token=${token}`;
+    const link = `${protocol}://${host}:${port}/auth/restore?token=${token}`;
 
     await this.mailerService.sendMail({
       to: email,

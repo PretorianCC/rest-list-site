@@ -4,11 +4,13 @@ import { Repository } from 'typeorm';
 import { AuthDto } from './dto/auth.dto';
 import { Auth } from './auth.entity';
 import { genSalt, hash, compare } from 'bcryptjs';
-import { USER_NOT_FOUND_ERROR, WRONG_PASSWORD_ERROR } from './auth.constants';
+import { TOKEN_NOT_FOUND_ERROR, USER_CONFIRMED_ERROR, USER_NOT_FOUND_ERROR, WRONG_PASSWORD_ERROR } from './auth.constants';
 import { JwtService } from '@nestjs/jwt';
 import {v4 as uuidv4} from 'uuid';
 import { MailService } from 'src/mail/mail.service';
 import { AuthTokenDto } from './dto/auth.tokem.dto';
+import { UserService } from 'src/user/user.service';
+import { User } from 'src/user/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +18,8 @@ export class AuthService {
   constructor(
     @InjectRepository(Auth) private readonly authRepository: Repository<Auth>,
     private readonly jwtService: JwtService,
-    private readonly mailService: MailService
+    private readonly mailService: MailService,
+    private readonly userService: UserService
   ) {}
 
   /**
@@ -29,9 +32,7 @@ export class AuthService {
     const newAuth = new Auth();
     newAuth.email = dto.login;
     newAuth.passwordHash = await hash(dto.password, salt);
-    const result = await this.authRepository.save(newAuth);
-    this.sendConfirmationEmail(dto.login);
-    return result;  
+    return this.authRepository.save(newAuth);
   }
 
   /**
@@ -110,15 +111,26 @@ export class AuthService {
   /**
    * Подтверждение электронной почты аккаунта и создание пользователя.
    * @param dto модель токена.
+   * @returns созданный пользователь.
    */
-  async confirmation(dto: AuthTokenDto) {
-    return this.findToken(dto.token);
+  async confirmation(dto: AuthTokenDto): Promise<User> {
+    const auth = await this.findToken(dto.token);
+    if (!auth) {
+      throw new UnauthorizedException(TOKEN_NOT_FOUND_ERROR);
+    }
+    auth.uuid = "";
+    this.authRepository.save(auth);
+    const user = await this.userService.findUser(auth.email);
+    if (user) {
+       throw new UnauthorizedException(USER_CONFIRMED_ERROR);
+    }
+    return this.userService.createUser({email: auth.email, name: auth.email});
   }
 
     /**
    * Найти аккаунт по токену.
    * @param token токен акаунта.
-   * @returns 
+   * @returns найденный аккаунт авторизации.
    */
      async findToken(token: string): Promise<Auth> {
       return await this.authRepository.findOne({uuid: token});

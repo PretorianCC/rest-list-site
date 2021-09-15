@@ -1,15 +1,18 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Render, UnauthorizedException, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
-import { ALREADY_REGISTERED_ERROR } from './auth.constants';
+import { ALREADY_REGISTERED_ERROR, USER_CONFIRMED_ERROR } from './auth.constants';
 // import { JwtAuthGuard } from './guards/jvt.guard';
 import { AuthRestoreDto } from './dto/auth.restore.dto';
 import { AuthTokenDto } from './dto/auth.tokem.dto';
+import { User } from 'src/user/user.entity';
 
 @Controller('auth')
 export class AuthController {
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+  ) {}
 
   /**
    * Регистрация аккаунта.
@@ -19,11 +22,13 @@ export class AuthController {
   @UsePipes(new ValidationPipe())
   @Post('register')
   async register(@Body() dto: AuthDto) {
-    const oldUser = await this.authService.findAuth(dto.login);
-    if (oldUser) {
+    const oldAuth = await this.authService.findAuth(dto.login);
+    if (oldAuth) {
       throw new BadRequestException(ALREADY_REGISTERED_ERROR);
     }
-    return this.authService.createAuth(dto);
+    const auth = await this.authService.createAuth(dto);
+    this.authService.sendConfirmationEmail(dto.login);
+    return auth;
   }
 
   /**
@@ -47,7 +52,7 @@ export class AuthController {
    */
   @UsePipes(new ValidationPipe())
   @Get('confirm')
-  async confirm(@Query() dto: AuthTokenDto) {
+  async confirm(@Query() dto: AuthTokenDto): Promise<User> {
     return this.authService.confirmation(dto);
   }
 
@@ -62,4 +67,15 @@ export class AuthController {
   async restore(@Body() {login}: AuthRestoreDto): Promise<void> {
     return this.authService.restorePassword(login);
   }
+
+  /**
+   * Страница изменения пароля.
+   */
+   @UsePipes(new ValidationPipe())
+   @HttpCode(200)
+   @Get('restore')
+   @Render('restorePassword')
+   async pageRestore(@Query() dto: AuthTokenDto) {
+    return { token: dto.token };
+   }
 }
