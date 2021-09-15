@@ -8,21 +8,21 @@ rest сервер для нового сайта https://list-site.ru
 
 ## Авторизация
 
-**POST /api/auth/register** - регистрация аккаунта (отсылается ссылка на подтверждение).
+**POST /api/auth/register** - регистрация аккаунта (отсылается ссылка на подтверждение).  
 body: {"login": "email", "password": "xxxx"}
 
-**GET /api/auth/confirm** - подтверждение регистрации аккаунта и создание пользователя.
-query:
+**GET /api/auth/confirm** - подтверждение регистрации аккаунта и создание пользователя.  
+query:  
   token - высланный токен подтверждения.
 
-**POST /api/auth/login** - авториризация и получение jwt токена.
+**POST /api/auth/login** - авториризация и получение jwt токена.  
 body: {"login": "email", "password": "xxxx"}
 
-**POST /api/auth/restore** - запрос на востановление пароля.
+**POST /api/auth/restore** - запрос на востановление пароля.  
 body: {"login": "email"}
 
-**GET /api/auth/restore** - страница изменения пароля.
-query:
+**GET /api/auth/restore** - страница изменения пароля.  
+query:  
   token - высланный токен подтверждения.
 
 ## Пользователи
