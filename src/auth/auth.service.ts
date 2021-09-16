@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthDto } from './dto/auth.dto';
@@ -6,11 +6,12 @@ import { Auth } from './auth.entity';
 import { genSalt, hash, compare } from 'bcryptjs';
 import { TOKEN_NOT_FOUND_ERROR, USER_CONFIRMED_ERROR, USER_NOT_FOUND_ERROR, WRONG_PASSWORD_ERROR } from './auth.constants';
 import { JwtService } from '@nestjs/jwt';
-import {v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { MailService } from 'src/mail/mail.service';
 import { AuthTokenDto } from './dto/auth.tokem.dto';
 import { UserService } from 'src/user/user.service';
 import { User } from 'src/user/user.entity';
+import { AuthChangeDto } from './dto/auth.change';
 
 @Injectable()
 export class AuthService {
@@ -127,13 +128,27 @@ export class AuthService {
     return this.userService.createUser({email: auth.email, name: auth.email});
   }
 
-    /**
+  /**
    * Найти аккаунт по токену.
    * @param token токен акаунта.
    * @returns найденный аккаунт авторизации.
    */
-     async findToken(token: string): Promise<Auth> {
-      return await this.authRepository.findOne({uuid: token});
+  async findToken(token: string): Promise<Auth> {
+    return await this.authRepository.findOne({uuid: token});
+  }
+
+  /**
+   * Изменяет пароль аккаунту.
+   * @param dto токен и пароль для изменения.
+   * @returns измененный аккаунт.
+   */
+  async changePassword(dto: AuthChangeDto): Promise<Auth> {
+    const auth = await this.findToken(dto.token);
+    if (!auth) {
+      throw new BadRequestException(TOKEN_NOT_FOUND_ERROR);
     }
-  
+    const salt = await genSalt(10);
+    auth.passwordHash = await hash(dto.password, salt);
+    return this.authRepository.save(auth);
+  }
 }

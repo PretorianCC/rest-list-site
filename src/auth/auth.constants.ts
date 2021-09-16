@@ -3,3 +3,4 @@ export const USER_NOT_FOUND_ERROR = 'Пользователь с таким emai
 export const WRONG_PASSWORD_ERROR = 'Неверный пароль';
 export const TOKEN_NOT_FOUND_ERROR = 'Токен не найден';
 export const USER_CONFIRMED_ERROR = 'Пользователь уже был подтвержден';
+export const PASSWORD_MATCH_ERROR = 'Пароли не совпадают';

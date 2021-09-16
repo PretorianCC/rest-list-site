@@ -1,11 +1,13 @@
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Render, UnauthorizedException, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthDto } from './dto/auth.dto';
-import { ALREADY_REGISTERED_ERROR, USER_CONFIRMED_ERROR } from './auth.constants';
+import { ALREADY_REGISTERED_ERROR, PASSWORD_MATCH_ERROR, TOKEN_NOT_FOUND_ERROR } from './auth.constants';
 // import { JwtAuthGuard } from './guards/jvt.guard';
 import { AuthRestoreDto } from './dto/auth.restore.dto';
 import { AuthTokenDto } from './dto/auth.tokem.dto';
 import { User } from 'src/user/user.entity';
+import { AuthChangeDto } from './dto/auth.change';
+import { Auth } from './auth.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -21,7 +23,7 @@ export class AuthController {
    */
   @UsePipes(new ValidationPipe())
   @Post('register')
-  async register(@Body() dto: AuthDto) {
+  async register(@Body() dto: AuthDto): Promise<Auth> {
     const oldAuth = await this.authService.findAuth(dto.login);
     if (oldAuth) {
       throw new BadRequestException(ALREADY_REGISTERED_ERROR);
@@ -40,7 +42,7 @@ export class AuthController {
   @UsePipes(new ValidationPipe())
   @HttpCode(200)
   @Post('login')
-  async login(@Body() {login, password}: AuthDto) {
+  async login(@Body() {login, password}: AuthDto): Promise<{access_token: string}> {
     const {email} = await this.authService.validateAuth(login, password);
     return this.authService.login(email);
   }
@@ -75,7 +77,23 @@ export class AuthController {
    @HttpCode(200)
    @Get('restore')
    @Render('restorePassword')
-   async pageRestore(@Query() dto: AuthTokenDto) {
+   async pageRestore(@Query() dto: AuthTokenDto): Promise<{token: string}> {
     return { token: dto.token };
+   }
+
+   /**
+    * Смена пароля.
+    */
+   @UsePipes(new ValidationPipe())
+   @HttpCode(201)
+   @Post('change')
+   async change(@Body() dto: AuthChangeDto): Promise<Auth> {
+     if (!dto.token) {
+      throw new BadRequestException(TOKEN_NOT_FOUND_ERROR);
+     }
+     if (dto.password !== dto.passwordOld) {
+       throw new BadRequestException(PASSWORD_MATCH_ERROR);
+     }
+     return this.authService.changePassword(dto);
    }
 }
